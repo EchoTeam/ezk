@@ -41,7 +41,7 @@
  	       }).
 
 %% API
--export([start/1,start_link/2]).
+-export([start/1,start_link/1,start_link/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -74,9 +74,11 @@ start(Args) ->
     ?LOG(1,"Connection: Start link called with Args: ~w",[Args]),
     gen_server:start(?MODULE, Args , []).
 
+start_link(Args) ->
+    gen_server:start_link(?MODULE, Args, []).
+
 start_link(Name, Args) ->
     gen_server:start_link({local, Name}, ?MODULE, Args, []).
-
 
 %%-------------------------------------------------------------------------------
 %%------------------ Commands 
@@ -288,11 +290,11 @@ init([Servers, TryTimes]) ->
     random:seed(erlang:now()),
     process_flag(trap_exit, true),
     K = n_init_trys(Servers, TryTimes),
-    ?LOG(1, "Connection established"), 
+    ?LOG(1, "Connection: Connection status: ~p", [K]),
     K.
 
 n_init_trys(_Servers, 0) ->
-    {error, no_server_reached};
+    {stop, {error, no_server_reached}};
 n_init_trys(Servers, N) ->
     ?LOG(1,"Connect init : incomming args: ~w",[Servers]),
     WhichServer = random:uniform(length(Servers)),
@@ -301,7 +303,7 @@ n_init_trys(Servers, N) ->
     case establish_connection(Ip, Port, WantedTimeout, HeartBeatTime) of
 	{ok, State} ->
 	    {ok, State};
-	error ->
+    {error, _} ->
 	    n_init_trys(Servers, N-1)
     end.
 
@@ -333,17 +335,16 @@ handle_call({command, Args}, From, State) ->
 handle_call({watchcommand, {Command, CommandW, Path, {WType, WO, WM}}}, From, State) ->
     ?LOG(1," Connection: Got a WatchSetter"),
     Watchtable = State#cstate.watchtable,
-    AllIn = ets:lookup(Watchtable, {WType,Path}),
-    ?LOG(3," Connection: Searched Table"),
-    true = ets:insert(Watchtable, {{WType, Path}, WO, WM}),
-    ?LOG(3," Connection: Inserted new Entry: ~w",[{{WType, Path}, WO, WM}]),
-    case AllIn of
-	[] -> 
-	    ?LOG(3," Connection: Search got []"),
-	    handle_call({command, {CommandW, Path}}, From, State);
-	_Else -> 
-	    ?LOG(3," Connection: Already Watches set to this path/typ"),
-	    handle_call({command, {Command, Path}}, From, State)
+    ?LOG(3, " Connection: Searching Watchers Table"),
+    case ets:lookup(Watchtable, {WType,Path}) of
+        [] ->
+            ?LOG(3, " Connection: Search did not find an existing watcher. Add one."),
+            true = ets:insert(Watchtable, {{WType, Path}, WO, WM}),
+            ?LOG(3, " Connection: Inserted new Entry: ~p", [{{WType, Path}, WO, WM}]),
+            handle_call({command, {CommandW, Path}}, From, State);
+        _Else ->
+            ?LOG(3," Connection: Already Watches set to this path/typ"),
+            handle_call({command, {Command, Path}}, From, State)
     end;
 %% Handles orders to die by dying
 handle_call({die, Reason}, _From, State) ->
@@ -386,6 +387,8 @@ handle_info({tcp, _Port, Info}, State) ->
     TypedMessage = ezk_packet_2_message:get_message_typ(Info), 
     ?LOG(4, "Connection: Typedmessage is ~w",[TypedMessage]),     
     handle_typed_incomming_message(TypedMessage, State);
+handle_info({tcp_closed, _Port}, State) ->
+    {stop, {shutdown, connection_closed}, State};
 %% Its time to let the Heart bump one more time
 handle_info(heartbeat, State) ->
     case State#cstate.outstanding_heartbeats of
@@ -401,15 +404,13 @@ handle_info(heartbeat, State) ->
 	    {noreply, NewState};
 	%% Last bump got no reply. Thats bad.
         _Else ->
-	    {stop, {shutdown, heartattack}, State}
-    end;
-handle_info({tcp_closed, _Port}, State) ->
-    {stop, {shutdown, heartattacktcp_closed}, State}.
+	    {stop, {shutdown, heartbeat_timeout}, State}
+    end.
 
 %% if server dies all owners who are waiting for watchevents get a Message
 %% M = {watchlost, WatchMessage, Data}.
 %% All Outstanding requests are answered with {error, client_broke, CommId, Path}
-terminate(_Reason, State) ->
+terminate(Reason, State) ->
     Iteration   = State#cstate.iteration,
     QuitMessage = ezk_message_2_packet:make_quit_message(Iteration),
     Socket      = State#cstate.socket,
@@ -428,7 +429,7 @@ terminate(_Reason, State) ->
 		     From ! {error, client_broke, CommId, Path},
 		     ok
 	     end, OpenRequests),
-    ?LOG(1,"Connection: TERMINATING"),
+    ?LOG(1, "Connection: TERMINATING. Reason: ~p", [Reason]),
     ok.
 
 waitterminateok(Socket) ->
@@ -464,38 +465,49 @@ send_watch_events_and_erase_receivers(Table, Receivers, Path, Typ, SyncCon) ->
 %% Sets up a connection, performs the Handshake and saves the data to the initial State 
 establish_connection(Ip, Port, WantedTimeout, HeartBeatTime) ->
     ?LOG(1, "Connection: Server starting"),
-    ?LOG(3, "Connection: IP: ~s , Port: ~w, Timeout: ~w.",[Ip,Port,WantedTimeout]),  
-    case  gen_tcp:connect(Ip,Port,[binary,{packet,4}]) of
-	{ok, Socket} ->
-	    ?LOG(3, "Connection: Socket open"),    
-	    HandshakePacket = <<0:64, WantedTimeout:64, 0:64, 16:64, 0:128>>,
-	    ?LOG(3, "Connection: Handshake build"),    
-	    ok = gen_tcp:send(Socket, HandshakePacket),
-	    ?LOG(3, "Connection: Handshake send"),    
-	    ok = inet:setopts(Socket,[{active,once}]),
-	    ?LOG(3, "Connection: Channel set to Active"),    
-	    receive
-		{tcp,Socket,Reply} ->
-		    ?LOG(3, "Connection: Handshake Reply there"),    
-		    <<RealTimeout:64, SessionId:64, 16:32, _Hash:128>> = Reply,
-		    Watchtable    = ets:new(watchtable, [duplicate_bag, private]),
-		    InitialState  = #cstate{  
-		      socket = Socket, ip = Ip, 
-		      port = Port, timeout = RealTimeout,
-		      sessionid = SessionId, iteration = 1,
-		      watchtable = Watchtable, heartbeattime = HeartBeatTime},   
-		    ?LOG(3, "Connection: Initial state build"),         
-		    ok = inet:setopts(Socket,[{active,once}]),
-		    ?LOG(3, "Connection: Startup complete",[]),
-		    ?LOG(3, "Connection: Initial State : ~w",[InitialState])
-	    end,
-	    erlang:send_after(HeartBeatTime, self(), heartbeat),
-	    ?LOG(3,"Connection established with server ~s, ~w ~n",[Ip, Port]),
-	    {ok, InitialState};
-	_Else ->
-	    error
+    ?LOG(3, "Connection: IP: ~s , Port: ~w, Timeout: ~w.", [Ip,Port,WantedTimeout]),
+    case gen_tcp:connect(Ip, Port, [binary, {packet, 4}]) of
+        {ok, Socket} ->
+            ?LOG(3, "Connection: Socket open"),
+            HandshakePacket = <<0:32, 0:64, WantedTimeout:32, 0:64, 16:32, 0:128>>,
+            ok = gen_tcp:send(Socket, HandshakePacket),
+            ?LOG(3, "Connection: Handshake sent"),
+            ok = inet:setopts(Socket, [{active,once}]),
+            Watchtable    = ets:new(watchtable, [duplicate_bag, private]),
+            InitialState  = #cstate{
+                socket = Socket, ip = Ip, port = Port,
+                watchtable = Watchtable, heartbeattime = HeartBeatTime},
+            ?LOG(3, "Connection: Initial State: ~w", [InitialState]),
+            HandshakeResult = receive
+                {tcp, Socket, <<ProtoVersion:32, RealTimeout:32, SessionId:64, 16:32, _Hash:128>>} ->
+                    ?LOG(3, "Connection: Received Handshake Reply"),
+                    ConnectedState = InitialState#cstate{
+                        sessionid = SessionId,
+                        timeout = RealTimeout,
+                        iteration = 1
+                    },
+                    ?LOG(3, "Connection: Protocol version: ~p; Session Id: ~p", [ProtoVersion, SessionId]),
+                    ok = inet:setopts(Socket, [{active,once}]),
+                    ?LOG(3, "Connection: Startup complete."),
+                    erlang:send_after(HeartBeatTime, self(), heartbeat),
+                    {ok, ConnectedState};
+                {tcp, Socket, Reply} ->
+                    ?LOG(3, "Connection: handshake failed. Got unknown reply:~n~p~n", [Reply]),
+                    gen_tcp:close(Socket),
+                    {error, handshake_failed};
+                {tcp_closed, Socket} ->
+                    ?LOG(3, "Connection: handshake failed, socket closed."),
+                    {error, tcp_closed};
+                {tcp_error, Socket, E} ->
+                    ?LOG(3, "Connection: handshake failed. TCP Error: ~p", [E]),
+                    {error, {tcp_error, E}}
+            end,
+            ?LOG(3, "Connection: Connection attempt result: ~p", [HandshakeResult]),
+            HandshakeResult;
+        Error ->
+            ?LOG(3, "Connection: Connection failed: ~p", [Error]),
+            {error, Error}
     end.
-	    
 
 %%% heartbeatreply: decrement the number of outstanding Heartbeats.
 handle_typed_incomming_message({heartbeat,_HeartBeat}, State) -> 
