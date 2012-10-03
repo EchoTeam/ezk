@@ -44,7 +44,7 @@
 -export([add_monitors/2, get_connections/0]).
 -export([exists/2, exists/4]).
 
--type ezk_err()          :: inval_acl | dir_exists | no_rights | no_dir | 
+-type ezk_err()          :: inval_acl | dir_exists | no_rights | no_dir |
 			    childs_or_forbidden.
 -type ezk_path()         :: string().
 -type ezk_conpid()       :: pid().
@@ -62,7 +62,7 @@
 -type ezk_ls2data()      :: {children, [ezk_path()]} | {getdata, ezk_getdata()}.
 -type ezk_server()       :: {}.
 -type ezk_monitor()      :: pid().
--type ezk_authreply()    :: {ok, authed} | {error, auth_failed} | 
+-type ezk_authreply()    :: {ok, authed} | {error, auth_failed} |
 			    {error, unknown, binary()} | {error,  auth_in_progress}.
 
 -spec create/3 :: (ezk_conpid(), ezk_path(), ezk_data()) ->
@@ -110,44 +110,44 @@
 -spec info_get_iterations/1 :: (ezk_conpid()) -> integer().
 -spec auth/3                :: (ezk_conpid(), ezk_acl_scheme(), ezk_acl_id()) ->
 				       ezk_authreply().
-				    
-			  
-			     
+
+
+
 
 help() ->
     io:format("--------------------------------------------------------------~n"),
     io:format("| The Commands this Client knows about:                      |~n"),
     io:format("|------------------------------------------------------------|~n"),
-    io:format("| ezk:create/3     : ConPId,  Path, Data                     |~n"),
-    io:format("| ezk:create/4     : ConPId,  Path, Data, Typ                |~n"),
-    io:format("| ezk:create/5     : ConPId,  Path, Data, Typ, [Acl]         |~n"),
-    io:format("| ezk:delete/2     : ConPId,  Path                           |~n"),
-    io:format("| ezk:delete_all/2 : ConPId,  Path                           |~n"),
-    io:format("| ezk:exists/2     : ConPId,  Path                           |~n"),
-    io:format("| ezk:exists/4     : ConPId,  Path, WatchOwner, Watchmessage |~n"),
-    io:format("| ezk:get/2        : ConPId,  Path                           |~n"),
-    io:format("| ezk:get/4        : ConPId,  Path, WatchOwner, Watchmessage |~n"),
-    io:format("| ezk:get_acl/2    : ConPId,  Path                           |~n"),
-    io:format("| ezk:set/3        : ConPId,  Path, Data                     |~n"),
-    io:format("| ezk:set_acl/3    : ConPId,  Path, [Acl]                    |~n"),
-    io:format("| ezk:ls/2         : ConPId,  Path                           |~n"),
-    io:format("| ezk:ls/4         : ConPId,  Path, WatchOwner, Watchmessage |~n"),
-    io:format("| ezk:ls2/2        : ConPId,  Path                           |~n"),
-    io:format("| ezk:ls2/4        : ConPId,  Path, WatchOwner, Watchmessage |~n"),
-    io:format("| ezk:info_get_iterations/1  : ConPId                        |~n"),
+    io:format("| ezk:create/3     : ConPID,  Path, Data                     |~n"),
+    io:format("| ezk:create/4     : ConPID,  Path, Data, Typ                |~n"),
+    io:format("| ezk:create/5     : ConPID,  Path, Data, Typ, [Acl]         |~n"),
+    io:format("| ezk:delete/2     : ConPID,  Path                           |~n"),
+    io:format("| ezk:delete_all/2 : ConPID,  Path                           |~n"),
+    io:format("| ezk:exists/2     : ConPID,  Path                           |~n"),
+    io:format("| ezk:exists/4     : ConPID,  Path, WatchOwner, Watchmessage |~n"),
+    io:format("| ezk:get/2        : ConPID,  Path                           |~n"),
+    io:format("| ezk:get/4        : ConPID,  Path, WatchOwner, Watchmessage |~n"),
+    io:format("| ezk:get_acl/2    : ConPID,  Path                           |~n"),
+    io:format("| ezk:set/3        : ConPID,  Path, Data                     |~n"),
+    io:format("| ezk:set_acl/3    : ConPID,  Path, [Acl]                    |~n"),
+    io:format("| ezk:ls/2         : ConPID,  Path                           |~n"),
+    io:format("| ezk:ls/4         : ConPID,  Path, WatchOwner, Watchmessage |~n"),
+    io:format("| ezk:ls2/2        : ConPID,  Path                           |~n"),
+    io:format("| ezk:ls2/4        : ConPID,  Path, WatchOwner, Watchmessage |~n"),
+    io:format("| ezk:info_get_iterations/1  : ConPID                        |~n"),
     io:format("| ezk:start_connection/0                                     |~n"),
     io:format("| ezk:start_connection/1     : Servers                       |~n"),
-    io:format("| ezk:end_connection/2       : ConPId, Reason                |~n"),
-    io:format("| ezk:addMonitors/2          : ConPId, MonitorPIds           |~n"),
+    io:format("| ezk:end_connection/2       : ConPID, Reason                |~n"),
+    io:format("| ezk:addMonitors/2          : ConPID, MonitorPIDs           |~n"),
     io:format("| ezk:getConnections/0                                       |~n"),
     io:format("|------------------------------------------------------------|~n"),
     io:format("| In Progress:                                               |~n"),
-    io:format("| ezk:auth/3       : ConPId,  Scheme, Id                     |~n"),
+    io:format("| ezk:auth/3       : ConPID,  Scheme, Id                     |~n"),
     io:format("| --> Dangerous function. Fail auths get the                 |~n"),
     io:format("|     zkServer to close the Session!                         |~n"),
     io:format("|      ---                                ---                |~n"),
     io:format("| Nonblocking Calls:                                         |~n"),
-    io:format("|     The last 2 Parameters are PId of the receiver          |~n"),
+    io:format("|     The last 2 Parameters are PID of the receiver          |~n"),
     io:format("|       and a Tag. The Answermessage is {Tag,Reply}          |~n"),
     io:format("| n_create/4, n_create/5, n_create/6,   n_delete/3           |~n"),
     io:format("| n_set/4,    n_get/3,    n_set_acl/4,  n_get_acl/3          |~n"),
@@ -155,9 +155,9 @@ help() ->
     io:format("|------------------------------------------------------------|~n"),
     io:format("| Datatypes:                                                 |~n"),
     io:format("| Acl = {Scheme,Id, [Permission]}                            |~n"),
-    io:format("| Path = Scheme = Id = Reason = String                       |~n"),  
+    io:format("| Path = Scheme = Id = Reason = String                       |~n"),
     io:format("| Permission = r | w | c | d | a                             |~n"),
-    io:format("| WatchOwner, ConPId = PId           WatchMessage = String   |~n"),
+    io:format("| WatchOwner, ConPID = PID           WatchMessage = String   |~n"),
     io:format("| Data    = All Things              Typ = e | s | es         |~n"),
     io:format("| Server  = {IP, Port, Timeout(ms), Heartbeattime(ms)        |~n"),
     io:format("| Servers = [Server]                                         |~n"),
@@ -167,156 +167,156 @@ help() ->
 %%--------------------------- Zookeeper Functions ---------------------
 %% Return {ok, Reply}.
 
-%% Reply = authed 
+%% Reply = authed
 %% Returns {error, auth_in_progress}  if the authslot is already in use.
 %% Returns {error, auth_failed} if server rejected auth
 %% Returns {error, unknown, ErrorCodeBin} if something new happened
-auth(ConnectionPId, Scheme, Id) ->
-   ezk_connection:addauth(ConnectionPId, Scheme, Id).
+auth(ConnectionPID, Scheme, Id) ->
+   ezk_connection:addauth(ConnectionPID, Scheme, Id).
 
 
 %% Creates a new ZK_Node
 %% Reply = Path where Path = String
-create(ConnectionPId, Path, Data) ->
-     ezk_connection:create(ConnectionPId, Path, Data).
-n_create(ConnectionPId, Path, Data, Receiver, Tag) ->
-     ezk_connection:n_create(ConnectionPId, Path, Data, Receiver, Tag).
+create(ConnectionPID, Path, Data) ->
+     ezk_connection:create(ConnectionPID, Path, Data).
+n_create(ConnectionPID, Path, Data, Receiver, Tag) ->
+     ezk_connection:n_create(ConnectionPID, Path, Data, Receiver, Tag).
 
 %% Typ = e | s | es (stands for etheremal, sequenzed or both)
-create(ConnectionPId, Path, Data, Typ) ->
-    ezk_connection:create(ConnectionPId, Path, Data, Typ).
-n_create(ConnectionPId, Path, Data, Typ, Receiver, Tag) ->
-    ezk_connection:n_create(ConnectionPId, Path, Data, Typ, Receiver, Tag).
+create(ConnectionPID, Path, Data, Typ) ->
+    ezk_connection:create(ConnectionPID, Path, Data, Typ).
+n_create(ConnectionPID, Path, Data, Typ, Receiver, Tag) ->
+    ezk_connection:n_create(ConnectionPID, Path, Data, Typ, Receiver, Tag).
 
 
-%% Acls = [Acl] where Acl = {Permissions, Scheme, Id} 
+%% Acls = [Acl] where Acl = {Permissions, Scheme, Id}
 %% with Scheme and Id = String
-%% and Permission = [Per] | String 
+%% and Permission = [Per] | String
 %% where Per = r | w | c | d | a
-create(ConnectionPId, Path, Data, Typ, Acls)  ->
-   ezk_connection:create(ConnectionPId, Path, Data, Typ, Acls).
-n_create(ConnectionPId, Path, Data, Typ, Acls, Receiver, Tag)  ->
-   ezk_connection:n_create(ConnectionPId, Path, Data, Typ, Acls, Receiver, Tag).
+create(ConnectionPID, Path, Data, Typ, Acls)  ->
+   ezk_connection:create(ConnectionPID, Path, Data, Typ, Acls).
+n_create(ConnectionPID, Path, Data, Typ, Acls, Receiver, Tag)  ->
+   ezk_connection:n_create(ConnectionPID, Path, Data, Typ, Acls, Receiver, Tag).
 
-ensure_path(ConnectionPId, Path) ->
-    ezk_connection:ensure_path(ConnectionPId, Path).
+ensure_path(ConnectionPID, Path) ->
+    ezk_connection:ensure_path(ConnectionPID, Path).
 
 %% Deletes a ZK_Node
 %% Only working if Node has no children.
 %% Reply = Path where Path = String
-delete(ConnectionPId, Path) ->
-    ezk_connection:delete(ConnectionPId, Path).
-n_delete(ConnectionPId, Path, Receiver, Tag) ->
-    ezk_connection:n_delete(ConnectionPId, Path, Receiver, Tag).
+delete(ConnectionPID, Path) ->
+    ezk_connection:delete(ConnectionPID, Path).
+n_delete(ConnectionPID, Path, Receiver, Tag) ->
+    ezk_connection:n_delete(ConnectionPID, Path, Receiver, Tag).
 
 %% Deletes a ZK_Node and all his childs.
 %% Reply = Path where Path = String
-delete_all(ConnectionPId, Path) ->
-   ezk_connection:delete_all(ConnectionPId, Path).    
+delete_all(ConnectionPID, Path) ->
+   ezk_connection:delete_all(ConnectionPID, Path).
 
 %% Looks if a Node exists
 %% Reply = Parameters like in get (see one function below)
 %% Can set a watch to the path
-%% which is triggered 
+%% which is triggered
 %% a) when path is erased if path existed.
 %% b) when path is created if path did not exist.
-exists(ConnectionPId, Path) ->
-    ezk_connection:exists(ConnectionPId, Path).
-exists(ConnectionPId, Path, WatchOwner, WatchMessage) ->
-    ezk_connection:exists(ConnectionPId, Path, WatchOwner, WatchMessage).
+exists(ConnectionPID, Path) ->
+    ezk_connection:exists(ConnectionPID, Path).
+exists(ConnectionPID, Path, WatchOwner, WatchMessage) ->
+    ezk_connection:exists(ConnectionPID, Path, WatchOwner, WatchMessage).
 
 %% Reply = {Data, Parameters} where Data = The Data stored in the Node
 %% and Parameters = {getdata, Czxid, Mzxid, Pzxid, Ctime, Mtime, Dataversion,
 %%                   Datalength, Number_children, Cversion, Aclversion, Ephe_owner}
-get(ConnectionPId, Path) ->
-    ezk_connection:get(ConnectionPId, Path).
-n_get(ConnectionPId, Path, Receiver, Tag) ->
-    ezk_connection:n_get(ConnectionPId, Path, Receiver, Tag).
-   
+get(ConnectionPID, Path) ->
+    ezk_connection:get(ConnectionPID, Path).
+n_get(ConnectionPID, Path, Receiver, Tag) ->
+    ezk_connection:n_get(ConnectionPID, Path, Receiver, Tag).
+
 %% Like the one above but sets a datawatch to Path.
-%% If watch is triggered a Message M is send to the PId WatchOwner
+%% If watch is triggered a Message M is send to the PID WatchOwner
 %% M = {WatchMessage, {Path, Type, SyncCon}}
 %% with Type = child
-get(ConnectionPId, Path, WatchOwner, WatchMessage) ->
-    ezk_connection:get(ConnectionPId, Path, WatchOwner, WatchMessage).
+get(ConnectionPID, Path, WatchOwner, WatchMessage) ->
+    ezk_connection:get(ConnectionPID, Path, WatchOwner, WatchMessage).
 
 %% Returns the actual Acls of a Node
 %% Reply = {[ACL],Parameters} with ACl and Parameters like above
-get_acl(ConnectionPId, Path) ->
-    ezk_connection:get_acl(ConnectionPId, Path).
-n_get_acl(ConnectionPId, Path, Receiver, Tag) ->
-    ezk_connection:n_get_acl(ConnectionPId, Path, Receiver, Tag).
+get_acl(ConnectionPID, Path) ->
+    ezk_connection:get_acl(ConnectionPID, Path).
+n_get_acl(ConnectionPID, Path, Receiver, Tag) ->
+    ezk_connection:n_get_acl(ConnectionPID, Path, Receiver, Tag).
 
 %% Sets new Data in a Node. Old ones are lost.
 %% Reply = Parameters with Data like at get
-set(ConnectionPId, Path, Data) ->
-   ezk_connection:set(ConnectionPId, Path, Data).
-n_set(ConnectionPId, Path, Data, Receiver, Tag) ->
-   ezk_connection:n_set(ConnectionPId, Path, Data, Receiver, Tag).
+set(ConnectionPID, Path, Data) ->
+   ezk_connection:set(ConnectionPID, Path, Data).
+n_set(ConnectionPID, Path, Data, Receiver, Tag) ->
+   ezk_connection:n_set(ConnectionPID, Path, Data, Receiver, Tag).
 
 %% Sets new Acls in a Node. Old ones are lost.
 %% ACL like above.
 %% Reply = Parameters with Data like at get
-set_acl(ConnectionPId, Path, Acls) ->
-    ezk_connection:set_acl(ConnectionPId, Path, Acls).
-n_set_acl(ConnectionPId, Path, Acls, Receiver, Tag) ->
-    ezk_connection:n_set_acl(ConnectionPId, Path, Acls, Receiver, Tag).
+set_acl(ConnectionPID, Path, Acls) ->
+    ezk_connection:set_acl(ConnectionPID, Path, Acls).
+n_set_acl(ConnectionPID, Path, Acls, Receiver, Tag) ->
+    ezk_connection:n_set_acl(ConnectionPID, Path, Acls, Receiver, Tag).
 
 %% Lists all Children of a Node. Paths are given as Binarys!
 %% Reply = [ChildName] where ChildName = <<"Name">>
-ls(ConnectionPId, Path) ->
-   ezk_connection:ls(ConnectionPId, Path).
-n_ls(ConnectionPId, Path, Receiver, Tag) ->
-   ezk_connection:n_ls(ConnectionPId, Path, Receiver, Tag).
-%% like above, but a Childwatch is set to the Node. 
+ls(ConnectionPID, Path) ->
+   ezk_connection:ls(ConnectionPID, Path).
+n_ls(ConnectionPID, Path, Receiver, Tag) ->
+   ezk_connection:n_ls(ConnectionPID, Path, Receiver, Tag).
+%% like above, but a Childwatch is set to the Node.
 %% Same Reaktion like at get with watch but Type = child
-ls(ConnectionPId, Path, WatchOwner, WatchMessage) ->
-    ezk_connection:ls(ConnectionPId, Path, WatchOwner, WatchMessage).
+ls(ConnectionPID, Path, WatchOwner, WatchMessage) ->
+    ezk_connection:ls(ConnectionPID, Path, WatchOwner, WatchMessage).
 
 %% Lists all Children of a Node. Paths are given as Binarys!
 %% Reply = {[ChildName],Parameters} with Parameters and ChildName like above.
-ls2(ConnectionPId, Path) ->
-   ezk_connection:ls2(ConnectionPId, Path).
-n_ls2(ConnectionPId, Path, Receiver, Tag) ->
-   ezk_connection:n_ls2(ConnectionPId, Path, Receiver, Tag).
-%% like above, but a Childwatch is set to the Node. 
+ls2(ConnectionPID, Path) ->
+   ezk_connection:ls2(ConnectionPID, Path).
+n_ls2(ConnectionPID, Path, Receiver, Tag) ->
+   ezk_connection:n_ls2(ConnectionPID, Path, Receiver, Tag).
+%% like above, but a Childwatch is set to the Node.
 %% Same Reaktion like at get with watch but Type = child
-ls2(ConnectionPId, Path, WatchOwner, WatchMessage) ->
-    ezk_connection:ls2(ConnectionPId, Path, WatchOwner, WatchMessage).
+ls2(ConnectionPID, Path, WatchOwner, WatchMessage) ->
+    ezk_connection:ls2(ConnectionPID, Path, WatchOwner, WatchMessage).
 
 %% Returns the Actual Transaction Id of the Client.
 %% Reply = Iteration = Int.
-info_get_iterations(ConnectionPId) ->
-    ezk_connection:info_get_iterations(ConnectionPId).
-    
+info_get_iterations(ConnectionPID) ->
+    ezk_connection:info_get_iterations(ConnectionPID).
+
 %% Starts a connection to a zookeeper Server
-%% Returns {ok, PID} where Pid is the PId of the gen_server 
+%% Returns {ok, PID} where Pid is the PID of the gen_server
 %% which manages the connection
 start_connection() ->
     start_connection([]).
-    
+
 %% Starts a connection to a zookeeper Server
-%% Returns {ok, PID} where Pid is the PId of the gen_server 
+%% Returns {ok, PID} where Pid is the PID of the gen_server
 %% which manages the connection
 start_connection(Servers) ->
     ezk_connection_manager:start_connection(Servers).
-    
+
 %% stops a connection. Returns ok.
-end_connection(ConnectionPId, Reason) ->
-    ezk_connection_manager:end_connection(ConnectionPId, Reason).
+end_connection(ConnectionPID, Reason) ->
+    ezk_connection_manager:end_connection(ConnectionPID, Reason).
 
-%% Adds new monitor PIds to bind to one connection. If one 
+%% Adds new monitor PIDs to bind to one connection. If one
 %% of the Monitors dies the connection is closed down.
-add_monitors(ConnectionPId, Monitors) ->
-    ezk_connection_manager:add_monitors(ConnectionPId, Monitors).
+add_monitors(ConnectionPID, Monitors) ->
+    ezk_connection_manager:add_monitors(ConnectionPID, Monitors).
 
-%% Provides a list of all actually active connections. 
-%% Returns [Connection] where Connection = {PId, [MonitorPId]} 
+%% Provides a list of all actually active connections.
+%% Returns [Connection] where Connection = {PID, [MonitorPID]}
 get_connections() ->
     ezk_connection_manager:get_connections().
 
-die(ConnectionPId) ->
-    ezk:die(ConnectionPId, "No offence").
+die(ConnectionPID) ->
+    ezk:die(ConnectionPID, "No offence").
 
-die(ConnectionPId, Reason) ->
-    ezk_connection:die(ConnectionPId, Reason).
+die(ConnectionPID, Reason) ->
+    ezk_connection:die(ConnectionPID, Reason).
