@@ -28,24 +28,24 @@
 -behaviour(gen_server).
 
 -record(cstate, {open_requests = dict:new(), 
-		 socket, 
-		 ip, 
-		 port, 
-		 timeout, 
-		 sessionid, 
-		 iteration,
-		 outstanding_heartbeats = 0,
-		 outstanding_auths = 0,
-		 watchtable,
-		 heartbeattime
- 	       }).
+                 socket, 
+                 ip, 
+                 port, 
+                 timeout, 
+                 sessionid, 
+                 iteration,
+                 outstanding_heartbeats = 0,
+                 outstanding_auths = 0,
+                 watchtable,
+                 heartbeattime
+                }).
 
 %% API
 -export([start/1,start_link/1,start_link/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
 -export([establish_connection/4]).
 
@@ -106,13 +106,13 @@ create(ConnectionPId, Path, Data) ->
     gen_server:call(ConnectionPId, {command, {create, Path, Data, [], [undef]}}).
 n_create(ConnectionPId, Path, Data, Receiver, Tag) ->     
     gen_server:cast(ConnectionPId, {nbcommand, {create, Path, Data, [], [undef]}, 
-				    Receiver, Tag}).
+                                    Receiver, Tag}).
 %% Typ = e | s | es (stands for etheremal, sequenzed or both)
 create(ConnectionPId, Path, Data, Typ) ->     
     gen_server:call(ConnectionPId, {command, {create, Path, Data, Typ, [undef]}}).
 n_create(ConnectionPId, Path, Data, Typ, Receiver, Tag) ->     
     gen_server:cast(ConnectionPId, {nbcommand, {create, Path, Data, Typ, [undef]}, 
-				    Receiver, Tag}).
+                                    Receiver, Tag}).
 
 %% Acls = [Acl] where Acl = {Permissions, Scheme, Id} 
 %% with Scheme and Id = String
@@ -122,7 +122,7 @@ create(ConnectionPId, Path, Data, Typ, Acls)  ->
     gen_server:call(ConnectionPId, {command, {create, Path, Data, Typ, Acls}}).
 n_create(ConnectionPId, Path, Data, Typ, Acls, Receiver, Tag)  ->     
     gen_server:cast(ConnectionPId, {nbcommand, {create, Path, Data, Typ, Acls}, 
-				    Receiver, Tag}).
+                                    Receiver, Tag}).
 
 %% Deletes a ZK_Node
 %% Only working if Node has no children.
@@ -146,26 +146,26 @@ delete_all(ConnectionPId, Path) ->
     Childs = ls(ConnectionPId, Path),
     case Childs of
         {ok, []} ->
-	    ?LOG(3, "Killing ~s",[Path]),
-	    delete(ConnectionPId, Path);
-	{ok, ListOfChilds} ->
-	    ?LOG(3, "Delete All: List of Childs: ~s",[ListOfChilds]),
-            case Path of
-		"/" ->
-		    lists:map(fun(A) ->
-				      (delete_all(ConnectionPId, Path++(binary_to_list(A))))
-			      end, ListOfChilds);
-		_Else  -> 
-		    lists:map(fun(A) ->
-				      (delete_all(ConnectionPId, 
-						  Path++"/"++(binary_to_list(A)))) 
-                              end, ListOfChilds)
-
-	    end,
             ?LOG(3, "Killing ~s",[Path]),
             delete(ConnectionPId, Path);
-	{error, Message} ->
-	    {error, Message}
+        {ok, ListOfChilds} ->
+            ?LOG(3, "Delete All: List of Childs: ~s",[ListOfChilds]),
+            case Path of
+                "/" ->
+                    lists:map(fun(A) ->
+                                      (delete_all(ConnectionPId, Path++(binary_to_list(A))))
+                              end, ListOfChilds);
+                _Else  -> 
+                    lists:map(fun(A) ->
+                                      (delete_all(ConnectionPId, 
+                                                  Path++"/"++(binary_to_list(A)))) 
+                              end, ListOfChilds)
+
+            end,
+            ?LOG(3, "Killing ~s",[Path]),
+            delete(ConnectionPId, Path);
+        {error, Message} ->
+            {error, Message}
     end.       
 
 %% Looks if a Node exists
@@ -178,7 +178,7 @@ exists(ConnectionPId, Path) ->
     gen_server:call(ConnectionPId, {command, {exists, Path}}).
 exists(ConnectionPId, Path, WatchOwner, WatchMessage) ->
     gen_server:call(ConnectionPId, {watchcommand, {exists, existsw, Path, {exi, WatchOwner,
-									  WatchMessage}}}).
+                                                                          WatchMessage}}}).
 
 %% Reply = {Data, Parameters} where Data = The Data stored in the Node
 %% and Parameters = {getdata, Czxid, Mzxid, Pzxid, Ctime, Mtime, Dataversion,
@@ -193,7 +193,7 @@ n_get(ConnectionPId, Path, Receiver, Tag) ->
 %% with Type = child
 get(ConnectionPId, Path, WatchOwner, WatchMessage) ->     
     gen_server:call(ConnectionPId, {watchcommand, {get, getw, Path, {data, WatchOwner,
-								     WatchMessage}}}).
+                                                                     WatchMessage}}}).
 
 %% Returns the actual Acls of a Node
 %% Reply = {[ACL],Parameters} with ACl and Parameters like above
@@ -229,21 +229,21 @@ n_ls(ConnectionPId, Path, Receiver, Tag) ->
 ls(ConnectionPId, Path, WatchOwner, WatchMessage) ->
     ?LOG(3,"Connection: Send lsw"),     
     gen_server:call(ConnectionPId, {watchcommand, {ls, lsw, Path, {child, WatchOwner,
-								   WatchMessage}}}).
+                                                                   WatchMessage}}}).
 
 %% Lists all Children of a Node. Paths are given as Binarys!
 %% Reply = {[ChildName],Parameters} with Parameters and ChildName like above.
 ls2(ConnectionPId, Path) ->
      
-		  gen_server:call(ConnectionPId, {command, {ls2, Path}}).
+                  gen_server:call(ConnectionPId, {command, {ls2, Path}}).
 n_ls2(ConnectionPId, Path, Receiver, Tag) ->     
-		  gen_server:cast(ConnectionPId, {command, {ls2, Path},
-						  Receiver, Tag}).
+                  gen_server:cast(ConnectionPId, {command, {ls2, Path},
+                                                  Receiver, Tag}).
 %% like above, but a Childwatch is set to the Node. 
 %% Same Reaktion like at get with watch but Type = child
 ls2(ConnectionPId, Path, WatchOwner, WatchMessage) ->
     gen_server:call(ConnectionPId, {watchcommand, {ls2, ls2w,Path ,{child, WatchOwner,
-								    WatchMessage}}}).
+                                                                    WatchMessage}}}).
 
 %% Returns the Actual Transaction Id of the Client.
 %% Reply = Iteration = Int.
@@ -266,17 +266,17 @@ get_prefix_paths([]) ->
 get_prefix_paths([ Head | Tail]) ->
     PrefixTails = get_prefix_paths(Tail),
     HeadedPrefixTails = lists:map(fun(PathTail) ->
-					   ("/"++ Head++ PathTail) end, PrefixTails),
+                                           ("/"++ Head++ PathTail) end, PrefixTails),
     ["/" ++ Head | HeadedPrefixTails].
 
-%% Ensures one single node exists. (parent node is expected to exist.	      
+%% Ensures one single node exists. (parent node is expected to exist.             
 ensure_folder(ConnectionPId, PrefixPath) ->
     case ls(ConnectionPId, PrefixPath) of
-	{ok, _I} ->
-	    ok;
-	{error, _I} ->
-	    create(ConnectionPId, PrefixPath, 
-		   list_to_binary("Created by ensure_path macro"))
+        {ok, _I} ->
+            ok;
+        {error, _I} ->
+            create(ConnectionPId, PrefixPath, 
+                   list_to_binary("Created by ensure_path macro"))
     end.
 
 
@@ -301,10 +301,10 @@ n_init_trys(Servers, N) ->
     ?LOG(0,"Choose server ~w",[WhichServer]),
     {Ip, Port, WantedTimeout, HeartBeatTime} =  lists:nth(WhichServer, Servers),
     case establish_connection(Ip, Port, WantedTimeout, HeartBeatTime) of
-	{ok, State} ->
-	    {ok, State};
-    {error, _} ->
-	    n_init_trys(Servers, N-1)
+        {ok, State} ->
+            {ok, State};
+        {error, _} ->
+            n_init_trys(Servers, N-1)
     end.
 
 
@@ -354,15 +354,15 @@ handle_call({die, Reason}, _From, State) ->
 handle_call({addauth, Scheme, Auth}, From, State) ->
     OutstandingAuths = State#cstate.outstanding_auths,
     case OutstandingAuths of
-	1 ->
-	    {reply,  {error, auth_in_progress}, State};
-	0 ->
-	    {ok, Packet} = ezk_message_2_packet:make_addauth_packet({add_auth, Scheme,
-								     Auth}),
-	    gen_tcp:send(State#cstate.socket, Packet),
-	    NewOpen  = dict:store(auth, From, State#cstate.open_requests),
-	    NewState = State#cstate{outstanding_auths = 1, open_requests = NewOpen },   
-	    {noreply, NewState}
+        1 ->
+            {reply,  {error, auth_in_progress}, State};
+        0 ->
+            {ok, Packet} = ezk_message_2_packet:make_addauth_packet({add_auth, Scheme,
+                                                                     Auth}),
+            gen_tcp:send(State#cstate.socket, Packet),
+            NewOpen  = dict:store(auth, From, State#cstate.open_requests),
+            NewState = State#cstate{outstanding_auths = 1, open_requests = NewOpen },   
+            {noreply, NewState}
     end.
 %% handles non blocking commands
 %% the difference in handling compared with blocking commands is the prefix
@@ -374,7 +374,7 @@ handle_cast({nbcommand, Args, Receiver, Tag}, State) ->
     gen_tcp:send(State#cstate.socket, Packet),
     ?LOG(1, "Connection: Packet send"),
     NewOpen  = dict:store(Iteration, {CommId, Path, {nonblocking, Receiver, Tag}},
-			  State#cstate.open_requests),
+                          State#cstate.open_requests),
     ?LOG(3, "Connection: Saved open Request."),
     NewState = State#cstate{iteration = Iteration+1, open_requests = NewOpen },    
     ?LOG(3, "Connection: Returning to wait status"),  
@@ -392,19 +392,19 @@ handle_info({tcp_closed, _Port}, State) ->
 %% Its time to let the Heart bump one more time
 handle_info(heartbeat, State) ->
     case State#cstate.outstanding_heartbeats of
-	%% if there is no outstanding Heartbeat everything is ok.
-	%% The new beat is send and a notice left when the next bump is scheduled
-	0 ->
+        %% if there is no outstanding Heartbeat everything is ok.
+        %% The new beat is send and a notice left when the next bump is scheduled
+        0 ->
             ?LOG(4, "Send a Heartbeat"),
             Heartbeat = << 255,255,255,254, 11:32>>,
-	    gen_tcp:send(State#cstate.socket, Heartbeat),
+            gen_tcp:send(State#cstate.socket, Heartbeat),
             NewState = State#cstate{outstanding_heartbeats = 1},
-	    HeartBeatTime = State#cstate.heartbeattime,
-	    erlang:send_after(HeartBeatTime, self(), heartbeat),
-	    {noreply, NewState};
-	%% Last bump got no reply. Thats bad.
+            HeartBeatTime = State#cstate.heartbeattime,
+            erlang:send_after(HeartBeatTime, self(), heartbeat),
+            {noreply, NewState};
+        %% Last bump got no reply. Thats bad.
         _Else ->
-	    {stop, {shutdown, heartbeat_timeout}, State}
+            {stop, {shutdown, heartbeat_timeout}, State}
     end.
 
 %% if server dies all owners who are waiting for watchevents get a Message
@@ -419,28 +419,28 @@ terminate(Reason, State) ->
     Watchtable = State#cstate.watchtable,
     ?LOG(1,"Connection: Sending watches"),
     ets:foldl(fun({Data, WO, WM}, _Acc0) ->
-		      ?LOG(2,"Connection: Sending watchlost to ~w: ~w", 
-			   [WO, {watchlost, WM, Data}]),
-		      WO ! {watchlost, WM, Data},
-		      ok
-	      end, ok, Watchtable),
+                      ?LOG(2,"Connection: Sending watchlost to ~w: ~w", 
+                           [WO, {watchlost, WM, Data}]),
+                      WO ! {watchlost, WM, Data},
+                      ok
+              end, ok, Watchtable),
     OpenRequests = State#cstate.open_requests,
     dict:map(fun(_Key, {CommId, Path, From}) ->
-		     From ! {error, client_broke, CommId, Path},
-		     ok
-	     end, OpenRequests),
+                     From ! {error, client_broke, CommId, Path},
+                     ok
+             end, OpenRequests),
     ?LOG(1, "Connection: TERMINATING. Reason: ~p", [Reason]),
     ok.
 
 waitterminateok(Socket) ->
     receive
-	{tcp, Socket, <<_Iteration:32, _PZxid:64, 0:32>>} ->
-	    ok;
-	{tcp, Socket, _Something} ->
-	    waitterminateok(Socket)							  
+        {tcp, Socket, <<_Iteration:32, _PZxid:64, 0:32>>} ->
+            ok;
+        {tcp, Socket, _Something} ->
+            waitterminateok(Socket)  
     after
-	4 ->
-	    ok
+        4 ->
+            ok
     end.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -450,16 +450,16 @@ code_change(_OldVsn, State, _Extra) ->
 %% Updates the Watchtable if a watchevent arrived and sends the Message to the owner
 send_watch_events_and_erase_receivers(Table, Receivers, Path, Typ, SyncCon) ->
     case Receivers of
-	[] ->
+        [] ->
             ?LOG(1, "Connection: Receiver List completely processed"),
-	    ok;
-	[{Key, WatchOwner, WatchMessage}|T] ->
-	    true = ets:delete(Table, Key),
+            ok;
+        [{Key, WatchOwner, WatchMessage}|T] ->
+            true = ets:delete(Table, Key),
             ?LOG(1, "Connection: Send something to ~w", [WatchOwner]),
-	    Message = {WatchMessage, {Path, Typ, SyncCon}},
+            Message = {WatchMessage, {Path, Typ, SyncCon}},
             ?LOG(3, "Connection: The Message is  ~w", [Message]),
             WatchOwner ! Message,
-	    send_watch_events_and_erase_receivers(Table, T, Path, Typ, SyncCon)
+            send_watch_events_and_erase_receivers(Table, T, Path, Typ, SyncCon)
     end.  
 
 %% Sets up a connection, performs the Handshake and saves the data to the initial State 
@@ -528,7 +528,7 @@ handle_typed_incomming_message({watchevent, Payload}, State) ->
     Receivers = get_receivers(Typ, Path, Watchtable),
     ?LOG(3,"Connection: Receivers are: ~w",[Receivers]),
     ok = send_watch_events_and_erase_receivers(Watchtable, Receivers, Path,
-					       Typ, SyncCon),
+                                               Typ, SyncCon),
     ?LOG(3,"Connection: the first element in WT ~w",[ets:first(Watchtable)]), 
     ?LOG(3,"Connection: Receivers notified"),
     ok = inet:setopts(State#cstate.socket,[{active,once}]),
@@ -546,15 +546,15 @@ handle_typed_incomming_message({normal, MessId, _Zxid, PayloadWithErrorcode}, St
     NewState = State#cstate{open_requests = NewDict},
     ?LOG(3, "Connection: Dictionary updated"),
     Reply = ezk_packet_2_message:replymessage_2_reply(CommId, Path,
-						      PayloadWithErrorcode),
+                                                      PayloadWithErrorcode),
     ?LOG(3, "Connection: determinated reply"),
     ok = inet:setopts(State#cstate.socket,[{active,once}]),
     case From of
-	{blocking, PId} ->
-	    ?LOG(1, "Connection: Trying to send to ~w",[PId]),
-	    gen_server:reply(PId, Reply);
-	{nonblocking, ReceiverPId, Tag} ->
-	    ReceiverPId ! {Tag, Reply}
+        {blocking, PId} ->
+            ?LOG(1, "Connection: Trying to send to ~w",[PId]),
+            gen_server:reply(PId, Reply);
+        {nonblocking, ReceiverPId, Tag} ->
+            ReceiverPId ! {Tag, Reply}
     end,
     ?LOG(1, "Connection: Starting if in handle typed normal"),
     {noreply, NewState};
@@ -563,13 +563,13 @@ handle_typed_incomming_message({normal, MessId, _Zxid, PayloadWithErrorcode}, St
 handle_typed_incomming_message({authreply, Errorcode}, State) ->
     {ok, From}  = dict:find(auth, State#cstate.open_requests),
     case Errorcode of
-	<<0,0,0,0>> ->
-	    Reply = {ok, authed};
-	<<255,255,255,141>> ->
+        <<0,0,0,0>> ->
+            Reply = {ok, authed};
+        <<255,255,255,141>> ->
 %% The first part of the Message determines the type
-	    Reply = {error, auth_failed};
-	Else  -> 
-	    Reply = {error, unknown, Else}
+            Reply = {error, auth_failed};
+        Else  -> 
+            Reply = {error, unknown, Else}
     end,
     gen_server:reply(From, Reply),
     NewDict = dict:erase(auth, State#cstate.open_requests),
