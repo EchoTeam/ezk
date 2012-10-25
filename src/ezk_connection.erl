@@ -61,7 +61,7 @@
 %macros
 -export([delete_all/2, ensure_path/2]).
 %infos
--export([info_get_iterations/1]).
+-export([info_get_iterations/1, info_get_watches/1]).
 
 -export([exists/2, exists/4]).
 
@@ -250,6 +250,9 @@ ls2(ConnectionPId, Path, WatchOwner, WatchMessage) ->
 info_get_iterations(ConnectionPId) ->
     gen_server:call(ConnectionPId, {info, get_iterations}).
 
+info_get_watches(ConnectionPID) ->
+    gen_server:call(ConnectionPID, {info, get_watches}).
+
 %% Gets a path and looks if the corresponding node exists. If
 %% not it is created (along with the whole path).
 ensure_path(ConnectionPId, Path) ->
@@ -312,7 +315,7 @@ n_init_trys(Servers, N) ->
 handle_call({info, get_iterations}, _From, State) ->
     {reply, {ok, State#cstate.iteration}, State};
 handle_call({info, get_watches}, _From, State) ->
-    {reply, {ok, ets:first(State#cstate.watchtable)}, State};
+    {reply, {ok, ets:tab2list(State#cstate.watchtable)}, State};
 %% Handles normal commands (get/1, set/2, ...) by
 %% a) determinate the corresponding packet to send this request to zk_server
 %% b) Save that the Request was send in the open_requests dict (key: actual iteration)
@@ -335,17 +338,18 @@ handle_call({command, Args}, From, State) ->
 handle_call({watchcommand, {Command, CommandW, Path, {WType, WO, WM}}}, From, State) ->
     ?LOG(1," Connection: Got a WatchSetter"),
     Watchtable = State#cstate.watchtable,
-    ?LOG(3, " Connection: Searching Watchers Table"),
-    case ets:lookup(Watchtable, {WType,Path}) of
+    AllIn = ets:lookup(Watchtable, {WType,Path}),
+    ?LOG(3," Connection: Searched Table:~n~p~n", [AllIn]),
+    true = ets:insert(Watchtable, {{WType, Path}, WO, WM}),
+    ?LOG(3," Connection: Inserted new Entry: ~w",[{{WType, Path}, WO, WM}]),
+    case AllIn of
         [] ->
-            ?LOG(3, " Connection: Search did not find an existing watcher. Add one."),
-            true = ets:insert(Watchtable, {{WType, Path}, WO, WM}),
-            ?LOG(3, " Connection: Inserted new Entry: ~p", [{{WType, Path}, WO, WM}]),
+            ?LOG(3," Connection: Search got []"),
             handle_call({command, {CommandW, Path}}, From, State);
         _Else ->
             ?LOG(3," Connection: Already Watches set to this path/typ"),
             handle_call({command, {Command, Path}}, From, State)
-    end;
+     end;
 %% Handles orders to die by dying
 handle_call({die, Reason}, _From, State) ->
     ?LOG(3," Connection: exiting myself"),
@@ -421,12 +425,12 @@ terminate(Reason, State) ->
     ets:foldl(fun({Data, WO, WM}, _Acc0) ->
 		      ?LOG(2,"Connection: Sending watchlost to ~w: ~w", 
 			   [WO, {watchlost, WM, Data}]),
-		      WO ! {watchlost, WM, Data},
+               catch WO ! {watchlost, WM, Data},
 		      ok
 	      end, ok, Watchtable),
     OpenRequests = State#cstate.open_requests,
     dict:map(fun(_Key, {CommId, Path, From}) ->
-		     From ! {error, client_broke, CommId, Path},
+             catch From ! {error, client_broke, CommId, Path},
 		     ok
 	     end, OpenRequests),
     ?LOG(1, "Connection: TERMINATING. Reason: ~p", [Reason]),
@@ -458,7 +462,7 @@ send_watch_events_and_erase_receivers(Table, Receivers, Path, Typ, SyncCon) ->
             ?LOG(1, "Connection: Send something to ~w", [WatchOwner]),
 	    Message = {WatchMessage, {Path, Typ, SyncCon}},
             ?LOG(3, "Connection: The Message is  ~w", [Message]),
-            WatchOwner ! Message,
+	    catch WatchOwner ! Message,
 	    send_watch_events_and_erase_receivers(Table, T, Path, Typ, SyncCon)
     end.  
 
@@ -473,7 +477,7 @@ establish_connection(Ip, Port, WantedTimeout, HeartBeatTime) ->
             ok = gen_tcp:send(Socket, HandshakePacket),
             ?LOG(3, "Connection: Handshake sent"),
             ok = inet:setopts(Socket, [{active,once}]),
-            Watchtable    = ets:new(watchtable, [duplicate_bag, private]),
+            Watchtable    = ets:new(watchtable, [bag, private]),
             InitialState  = #cstate{
                 socket = Socket, ip = Ip, port = Port,
                 watchtable = Watchtable, heartbeattime = HeartBeatTime},

@@ -38,6 +38,6 @@ put(NeededLevel, Message) ->
 
 put(NeededLevel, Message, Parameters) ->
     case NeededLevel =< ?LEVEL of
-        true -> io:format("EZK Logger: " ++ Message ++ "~n", Parameters);
+        true -> error_logger:info_msg("[ezk_log]: " ++ Message ++ "~n", Parameters);
         false -> ok
     end.
