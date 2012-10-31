@@ -31,7 +31,7 @@
 %%   2 - even more things
 %%   3 - most things
 %%   4 - also heartbeats
--define(LEVEL, 4).
+-define(LEVEL, 3).
 
 put(NeededLevel, Message) ->
     put(NeededLevel, Message, []).
